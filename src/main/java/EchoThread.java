@@ -11,8 +11,14 @@ public class EchoThread extends Thread {
     BufferedReader in;
     PrintWriter out;
     PrintWriter writer;
-
+    ArrayList<String> tcpClientPacketData = new ArrayList<String>();
     DataTCP dataTCP;
+
+    String receivedPortUDP = null;
+    String receivedipClient = null;
+    String receivedFileName = null;
+    String receivedCurrentDate = null;
+    String receivedPattern = null;
 
     public EchoThread(Socket clientSocket) {
         this.socket = clientSocket;
@@ -22,12 +28,9 @@ public class EchoThread extends Thread {
             System.err.println("The file couldn't be created");
         }
         dataTCP = new DataTCP();
-        // writer.println(outputLine);
-
-
     }
 
-    enum informationDecodeStateMachine
+    enum informationPacketStateMachine
     {
         decodePattern_1 ,
         decodeCurrentDate,
@@ -41,7 +44,35 @@ public class EchoThread extends Thread {
     }
 
 
-    boolean decodeMessage(final ArrayList<String> message) {
+
+    public void run()
+    {
+        receiveTCPpacket();
+        convertTCPPacketToObjectsAsArray();
+        TCPObjectsToStrings();
+        showTCPReceivedPacketData();
+        sendRequestedFileToClient();
+    }
+
+    void receiveTCPpacket()
+    {
+        try {
+            out = new PrintWriter(socket.getOutputStream(), true);
+        } catch (IOException e) {
+            System.err.println("clientSocket.getOutputStream is not reading the values");
+        }
+        try {
+            in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            tcpClientPacketData.add(in.readLine());
+        } catch (IOException e) {
+            System.err.println("clientSocket.getInputStream() is not reading the values");
+        } catch (NullPointerException e) {
+            System.err.println("The array is not declared");
+        }
+    }
+
+    void convertTCPPacketToObjectsAsArray()
+    {
 
         dataTCP.Pattern.add('(');
         dataTCP.Pattern.add('%');
@@ -50,152 +81,62 @@ public class EchoThread extends Thread {
         dataTCP.Pattern.add(')');
         int i = 0;
 
-        informationDecodeStateMachine stateMachine = informationDecodeStateMachine.decodePattern_1;
+        informationPacketStateMachine stateMachine = informationPacketStateMachine.decodePattern_1;
         switch (stateMachine) {
             case decodePattern_1:
                 for (int j = 0; i < dataTCP.Pattern.size() - 1; i++, j++) {
-                    if (message.get(0).charAt(i) != dataTCP.Pattern.get(i))
-                        return false;
+                    if (tcpClientPacketData.get(0).charAt(i) != dataTCP.Pattern.get(i))
+                        return;
                 }
                 i++;
             case decodeCurrentDate:
-                while (message.get(0).charAt(i) != dataTCP.Pattern.get(0)) {
-                    dataTCP.CurrentDate.add(message.get(0).charAt(i));
+                while (tcpClientPacketData.get(0).charAt(i) != dataTCP.Pattern.get(0)) {
+                    dataTCP.CurrentDate.add(tcpClientPacketData.get(0).charAt(i));
                     i++;
                 }
             case decodePattern_2:
                 for (int j = 0; j < dataTCP.Pattern.size() - 1; i++, j++) {
-                    if (message.get(0).charAt(i) != dataTCP.Pattern.get(j))
-                        return false;
+                    if (tcpClientPacketData.get(0).charAt(i) != dataTCP.Pattern.get(j))
+                        return;
                 }
                 i++;
             case decodeFileName:
-                while (message.get(0).charAt(i) != dataTCP.Pattern.get(0)) {
-                    dataTCP.FileName.add(message.get(0).charAt(i));
+                while (tcpClientPacketData.get(0).charAt(i) != dataTCP.Pattern.get(0)) {
+                    dataTCP.FileName.add(tcpClientPacketData.get(0).charAt(i));
                     i++;
                 }
             case decodePattern_3:
                 for (int j = 0; j < dataTCP.Pattern.size() - 1; i++, j++) {
-                    if (message.get(0).charAt(i) != dataTCP.Pattern.get(j))
-                        return false;
+                    if (tcpClientPacketData.get(0).charAt(i) != dataTCP.Pattern.get(j))
+                        return;
                 }
                 i++;
             case decodeTCPAddress:
-                while (message.get(0).charAt(i) != dataTCP.Pattern.get(0)) {
-                    dataTCP.ipClient.add(message.get(0).charAt(i));
+                while (tcpClientPacketData.get(0).charAt(i) != dataTCP.Pattern.get(0)) {
+                    dataTCP.ipClient.add(tcpClientPacketData.get(0).charAt(i));
                     i++;
                 }
             case decodePattern_4:
                 for (int j = 0; j < dataTCP.Pattern.size() - 1; i++, j++) {
-                    if (message.get(0).charAt(i) != dataTCP.Pattern.get(j))
-                        return false;
+                    if (tcpClientPacketData.get(0).charAt(i) != dataTCP.Pattern.get(j))
+                        return;
                 }
                 i++;
             case decodePortUdp:
-                while (message.get(0).charAt(i) != dataTCP.Pattern.get(0)) {
-                    dataTCP.portUDP.add(message.get(0).charAt(i));
+                while (tcpClientPacketData.get(0).charAt(i) != dataTCP.Pattern.get(0)) {
+                    dataTCP.portUDP.add(tcpClientPacketData.get(0).charAt(i));
                     i++;
                 }
             case decodePattern_5:
                 for (int j = 0; j < dataTCP.Pattern.size(); i++, j++) {
-                    if (message.get(0).charAt(i) != dataTCP.Pattern.get(j))
-                        return false;
+                    if (tcpClientPacketData.get(0).charAt(i) != dataTCP.Pattern.get(j))
+                        return;
                 }
         }
-        return true;
+        return;
     }
 
-    public void run() {
-        //TCP connection reading the values
-        ArrayList<String> outputLine = new ArrayList<String>();
-        try {
-            out = new PrintWriter(socket.getOutputStream(), true);
-        } catch (IOException e) {
-            System.err.println("clientSocket.getOutputStream is not reading the values");
-        }
-        try {
-            in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            outputLine.add(in.readLine());
-        } catch (IOException e) {
-            System.err.println("clientSocket.getInputStream() is not reading the values");
-        } catch (NullPointerException e) {
-            System.err.println("The array is not declared");
-        }
-        if (!decodeMessage(outputLine)) return;
-        transformReceivedValues();
-        showReceivedValues();
-        sendFileThroughUDP();
-
-    }
-
-    boolean sendFileThroughUDP() {
-        final int maxPacketSize = 65508;
-        byte[] buffer = new byte[maxPacketSize];
-        //open a file to send
-/// getBytes from anyWhere
-// I'm getting byte array from File
-        File file = null;
-        FileInputStream fileStream = null;
-        String projectDirectory = "/home/heroadm/IdeaProjects/TrainingWebApplication/";
-        try {
-            fileStream = new FileInputStream(file = new File(projectDirectory + receivedFileName));
-        }
-        catch (FileNotFoundException e) {
-            System.err.println("The file is not found");
-            System.err.println(projectDirectory+receivedFileName);
-        }
-        long numberRequiredPackets = file.length() / maxPacketSize;
-
-        //sending informationPacket
-        System.out.println("Sending information packet");
-        String informationData = "Filename:" + receivedFileName
-                + "\nSize:" + file.length() + "\n";
-        byte[] ar = informationData.getBytes();
-        try {
-            InetAddress address = InetAddress.getByName(receivedipClient);
-            DatagramPacket packet = new DatagramPacket(ar, ar.length, address,
-                    Integer.parseInt(receivedPortUDP));
-        } catch (UnknownHostException e) {
-            e.printStackTrace();
-            System.err.format("Unknown host: %s",receivedipClient);
-        }
-
-
-        System.out.println("Sending data packets");
-        //sending dataPacket
-        for (int i = 0; i < numberRequiredPackets; i++) {
-            System.out.format("%s data packet is sent \n", i + 1);
-            byte[] arr = new byte[maxPacketSize];
-            try {
-                fileStream.read(arr, 0, maxPacketSize);
-                InetAddress address = InetAddress.getByName(receivedipClient);
-                DatagramPacket packet = new DatagramPacket(arr, arr.length, address, Integer.parseInt(receivedPortUDP));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-        System.out.println("UDP connection is finished!");
-        return true;
-    }
-
-
-    String receivedPortUDP = null;
-    String receivedipClient = null;
-    String receivedFileName = null;
-    String receivedCurrentDate = null;
-    String receivedPattern = null;
-
-    public void showReceivedValues()
-    {
-        System.out.format("Pattern used for transmission: %s \n",receivedPattern);
-        System.out.format("Date of transmitted information: %s \n",receivedCurrentDate);
-        System.out.format("Filename which is requested: %s \n",receivedFileName);
-        System.out.format("IP address of the client %s \n",receivedipClient);
-        System.out.format("Port of sent by client: %s \n",receivedPortUDP);
-
-    }
-
-    public void transformReceivedValues()
+     void TCPObjectsToStrings()
     {
          receivedPattern = dataTCP.Pattern.toString()
                 .replace(" ","")
@@ -226,6 +167,81 @@ public class EchoThread extends Thread {
                 .replace("[", "")  //remove the right bracket
                 .replace("]", "")  //remove the left bracket
                 .trim();           //remove trailing spaces from partially initialized arrays);
+    }
+
+    void showTCPReceivedPacketData()
+    {
+        System.out.format("Pattern used for transmission: %s \n",receivedPattern);
+        System.out.format("Date of transmitted information: %s \n",receivedCurrentDate);
+        System.out.format("Filename which is requested: %s \n",receivedFileName);
+        System.out.format("IP address of the client %s \n",receivedipClient);
+        System.out.format("Port of sent by client: %s \n",receivedPortUDP);
+
+    }
+
+    void sendRequestedFileToClient()
+    {
+        final int maxPacketSize = 65507;
+        byte[] buffer = new byte[maxPacketSize];
+        File file = null;
+        FileInputStream fileStream = null;
+        DatagramSocket socket = null;
+        try {
+            socket = new DatagramSocket();
+        }
+        catch(SocketException e)
+        {
+            System.out.println("Socket for UDP cannot be created");
+        }
+        String projectDirectory = "/home/heroadm/IdeaProjects/TrainingWebApplication/";
+        try {
+            fileStream = new FileInputStream(file = new File(projectDirectory + receivedFileName));
+        }
+        catch (FileNotFoundException e) {
+            System.err.println("The file is not found");
+            System.err.println(projectDirectory+receivedFileName);
+        }
+        long numberRequiredPackets = (file.length() / maxPacketSize) +1;
+
+        //sending informationPacket
+        System.out.println("Sending information packet");
+        String informationData = "Filename:" + receivedFileName
+                + " \nSize:" + file.length() + "\n";
+        byte[] ar = informationData.getBytes();
+        try {
+            InetAddress address = InetAddress.getByName(receivedipClient);
+            DatagramPacket packet = new DatagramPacket(ar, ar.length, address,
+                    Integer.parseInt(receivedPortUDP));
+            socket.send(packet);
+
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+            System.err.format("Unknown host: %s",receivedipClient);
+        } catch (IOException e)
+        {
+            System.err.println("Packet is not sent by socket");
+        }
+
+
+        System.out.println("Sending data packets");
+        //sending dataPacket
+        for (int i = 0; i < numberRequiredPackets; i++) {
+            System.out.format("%s data packet is sent \n", i + 1);
+            byte[] arr = new byte[maxPacketSize];
+            try {
+                fileStream.read(arr, 0, maxPacketSize);
+                InetAddress address = InetAddress.getByName(receivedipClient);
+                DatagramPacket packet = new DatagramPacket(arr, arr.length, address, Integer.parseInt(receivedPortUDP));
+                sleep(50);
+                socket.send(packet);
+            } catch (IOException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        System.out.println("UDP connection is finished!");
+        return;
     }
 }
 
